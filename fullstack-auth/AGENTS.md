@@ -24,7 +24,7 @@ Start with `jac guide jac-core-cheatsheet` and `jac guide jac-types`.
 - `jac guide jac-sv-endpoints` -- endpoint shapes, the response envelope.
 - `jac guide jac-sv-persistence` -- graph queries, relationships, view models.
 - `jac guide jac-cl-auth` -- `jacLogin` / `jacSignup` / `jacLogout`, AuthGuard.
-- `jac guide jac-cl-routing` -- file-based routing and the `(auth)/` group.
+- `jac guide jac-cl-routing` -- manual `<Router>` routing and AuthGuard.
 - `jac guide jac-shadcn-blocks` -- composition patterns for the UI.
 
 ## What this app is
@@ -45,14 +45,15 @@ The rules that keep this template honest:
   an anonymous caller lands on the shared guest graph. Writing user data from a
   `:pub` endpoint is a silent cross-user leak, with no compile or runtime error.
   Everything user-specific stays `def:protect` (or plain `def` / `:priv`).
-- **Keep the `app` shell in `main.jac`.** The `def:pub app(children)` shell
-  is not dead code -- the client entry imports `app` from `main.js` and
-  mounts every routed page inside it. Remove it and the bundle fails with "does
-  not provide an export named 'app'" and the page renders blank.
-- **Put new pages in the right route group.** `pages/(auth)/` is protected --
-  everything inside is wrapped in an AuthGuard automatically by the group name.
-  `pages/(public)/` is open. Groups add no URL segment. Do not hand-roll a guard
-  inside a page, and do not put a `layout.jac` inside `(auth)/`.
+- **Keep the `app` export in `main.jac`.** `base_route_app = "app"` in
+  `jac.toml` mounts it as the client root, and it owns the `<Router>`. Remove
+  or rename it and the bundle fails with "does not provide an export named
+  'app'" and the page renders blank.
+- **Add new routes to the table in `main.jac`.** This app uses MANUAL routing
+  -- there is no `pages/` directory, and adding one would fight the `<Router>`
+  over the URL. A protected route wraps its element in
+  `<AuthGuard redirect="/login">...</AuthGuard>`; an open route doesn't. Do not
+  hand-roll a guard inside a page component.
 - **Await every `sv import` call.** The stubs are async; a missing `await`
   assigns a Promise and the UI silently breaks. Mutations write, then refetch --
   rebind state to a fresh server response rather than mutating a list in place.
@@ -96,12 +97,14 @@ Concrete next steps. Each is a self-contained prompt you can hand to an agent.
 
 1. **"Add password reset."** The runtime already exposes the endpoints --
    `/user/forgot-password` takes an `identity` and `/user/reset-password` takes
-   the emailed token plus a new password. Add a `pages/(public)/forgot.jac`
-   route and link it from `components/LoginPage.jac`. Read
+   the emailed token plus a new password. Add a `components/ForgotPage.jac`, register
+   `/forgot` in the route table in `main.jac`, and link it from
+   `components/LoginPage.jac`. Read
    `jac guide jac-sv-auth` first; sending the mail needs an emailer configured.
 2. **"Add a profile settings page."** `save_profile` and `my_profile` in
    `services/notes.sv.jac` already do the work -- `save_profile` upserts, so no
-   new endpoint is needed. Add `pages/(auth)/settings.jac`, reuse the `Field` /
+   new endpoint is needed. Add `components/SettingsPage.jac`, register
+   `/settings` in `main.jac` wrapped in `<AuthGuard>`, reuse the `Field` /
    `Input` pattern from `components/SignupPage.jac`, and add a nav item to
    `components/AppSidebar.jac`.
 3. **"Add tags to notes and filter by them."** Put `has tags: list[str] = [];`

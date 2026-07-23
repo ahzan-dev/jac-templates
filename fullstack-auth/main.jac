@@ -1,6 +1,6 @@
 """Composition root.
 
-This file does two things and nothing else:
+This file does three things:
 
   1. Imports the server module, which registers each name from
      `services/notes.sv.jac` as a REST endpoint -- functions under
@@ -10,17 +10,13 @@ This file does two things and nothing else:
      separate microservice process. And no leading dot -- the path is
      absolute or it crashes at runtime.)
   2. Loads the app-wide stylesheet into the client bundle.
+  3. Declares the routes. This is MANUAL routing: `base_route_app = "app"`
+     in jac.toml points the client at `app()` below, which owns the
+     <Router>/<Routes>/<Route> table. There is no `pages/` directory.
 
-Routes are not listed here -- they come from `pages/` by convention:
-
-    pages/index.jac            ->  /          (redirects by auth state)
-    pages/(public)/login.jac   ->  /login
-    pages/(public)/signup.jac  ->  /signup
-    pages/(auth)/dashboard.jac ->  /dashboard
-
-The `(auth)` group name is what protects the dashboard: every page inside
-it is wrapped in an AuthGuard automatically, and unauthenticated visitors
-are sent to /login. There is no guard code to forget.
+`/dashboard` is protected by wrapping its element in <AuthGuard>: visitors
+without a session are redirected to /login before DashboardPage renders.
+The guard lives in the route table, so there is exactly one place to check.
 """
 
 import from services.notes {
@@ -30,16 +26,31 @@ import from services.notes {
 }
 
 import ".styles.global.css";
+import from "@jac/runtime" { Router, Routes, Route, Navigate, AuthGuard, jacIsLoggedIn }
+import from .components.LoginPage { LoginPage }
+import from .components.SignupPage { SignupPage }
+import from .components.DashboardPage { DashboardPage }
 
-"""The shell every routed page mounts inside.
+"""/ -- send visitors wherever they belong."""
+def:pub IndexRedirect() -> JsxElement {
+    if jacIsLoggedIn() {
+        return <Navigate to="/dashboard" replace={True} />;
+    }
+    return <Navigate to="/login" replace={True} />;
+}
 
-File-based routing still needs this: the client entry imports `app` from
-here and hands each `pages/` match to it as `children`. Without it the
-bundle fails with "does not provide an export named 'app'" and the page
-renders blank.
-"""
-def:pub app(children: any = None) -> JsxElement {
+def:pub app() -> JsxElement {
     return <div className="min-h-svh bg-background text-foreground antialiased">
-        {children}
+        <Router>
+            <Routes>
+                <Route path="/" element={<IndexRedirect />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/signup" element={<SignupPage />} />
+                <Route
+                    path="/dashboard"
+                    element={<AuthGuard redirect="/login"><DashboardPage /></AuthGuard>}
+                />
+            </Routes>
+        </Router>
     </div>;
 }

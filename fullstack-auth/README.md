@@ -25,13 +25,14 @@ def:protect add_note(title: str) -> NoteView {
 
 That is live at `POST /function/add_note` — typed request body, typed response,
 and an entry in the Swagger docs at `/docs`. Seven functions in that file, seven
-endpoints, and nothing anywhere registers a route:
+endpoints, and nothing anywhere registers an API route:
 
 `add_note`, `delete_note`, `list_notes`, `my_profile`, `note_stats`,
 `save_profile`, `toggle_note`.
 
 The helper `_now` is *not* one of them — a leading underscore keeps a function
-off the API entirely. Search this repo for a route table; there isn't one.
+off the API entirely. The only route table in this repo is the client-side
+one in `main.jac` — the API has none.
 
 ### 2. `root` persists — there is no database to set up
 
@@ -96,29 +97,27 @@ world. These endpoints need a JWT *and* need importing from `.jac`
 components, so `:protect` is the exact fit — `:priv` would compile and then warn
 (`W2037`) when a component tried to import it.
 
-### 4. Protected routes are a directory name
+### 4. Protected routes are one line in the route table
 
-`pages/` maps to URLs by convention. Route groups in parentheses add no URL
-segment:
-
-```
-pages/index.jac             ->  /           redirects by auth state
-pages/(public)/login.jac    ->  /login
-pages/(public)/signup.jac   ->  /signup
-pages/(auth)/dashboard.jac  ->  /dashboard  wrapped in AuthGuard
-```
-
-The `(auth)` group name is what protects the dashboard: every page inside it is
-wrapped in an AuthGuard automatically, and visitors without a session are sent
-to `/login`. The whole of `pages/(auth)/dashboard.jac` does not mention auth:
+Routing is MANUAL: `base_route_app = "app"` in `jac.toml` points the client at
+`app()` in `main.jac`, which declares every route explicitly:
 
 ```jac
-def:pub page() -> JsxElement {
-    return <DashboardPage />;
-}
+<Routes>
+    <Route path="/" element={<IndexRedirect />} />
+    <Route path="/login" element={<LoginPage />} />
+    <Route path="/signup" element={<SignupPage />} />
+    <Route
+        path="/dashboard"
+        element={<AuthGuard redirect="/login"><DashboardPage /></AuthGuard>}
+    />
+</Routes>
 ```
 
-There is no guard code to forget, because there is no guard code.
+The `<AuthGuard>` wrapper is what protects the dashboard: visitors without a
+session are redirected to `/login` before `DashboardPage` ever renders.
+`DashboardPage` itself does not mention auth — the guard lives in the route
+table, so there is exactly one place to check.
 
 ## Run it
 
@@ -181,16 +180,12 @@ The browser never assembles any of this by hand: `jacSignup` and `jacLogin` from
 ## Layout
 
 ```
-main.jac                           entry: server import + the `app` shell
+main.jac                           entry: server import + the route table (manual routing)
 jac.toml                           project config: theme, npm deps, single-process
 services/notes.sv.jac              the whole backend -- 2 nodes, 2 objs, 7 endpoints
-pages/index.jac                    /          -> redirects by auth state
-pages/(public)/login.jac           /login
-pages/(public)/signup.jac          /signup
-pages/(auth)/dashboard.jac         /dashboard -> auto-wrapped in AuthGuard
-components/LoginPage.jac        sign-in form -> jacLogin
-components/SignupPage.jac       sign-up -> jacSignup, then jacLogin, then save_profile
-components/DashboardPage.jac    stateful shell: owns page state, wires the sections
+components/LoginPage.jac        /login     sign-in form -> jacLogin
+components/SignupPage.jac       /signup    jacSignup, then jacLogin, then save_profile
+components/DashboardPage.jac    /dashboard (AuthGuard) stateful shell: owns page state
 components/DashboardPage.impl.jac  the async handler bodies
 components/AccountMenu.jac      header account menu + sign out (visible at every width)
 components/AppSidebar.jac       sidebar + user menu (stateless, props only)
@@ -201,15 +196,13 @@ lib/utils.jac                   cn()
 styles/global.css                  semantic tokens + theme
 ```
 
-## The `app` shell in `main.jac`
+## The `app` export in `main.jac`
 
-`main.jac` ends with a small `def:pub app(children)` shell. Next to
-file-based `pages/` routing it looks redundant, but it is required: the client
-entry imports `app` from `main.js` and mounts each routed page inside it as
-`children`. Delete it and the bundle dies with `The requested module
+`app()` in `main.jac` is the client root: `base_route_app = "app"` in
+`jac.toml` tells the runtime to mount it, and it owns the `<Router>`. Delete
+or rename it and the bundle dies with `The requested module
 '/compiled/main.js' does not provide an export named 'app'` — the page renders
-blank with no build error to point you at. It already carries a docstring saying
-exactly this; leave both in place.
+blank with no build error to point you at.
 
 ## Extending it
 

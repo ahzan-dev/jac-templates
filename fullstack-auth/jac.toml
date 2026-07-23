@@ -63,3 +63,9 @@ og_type = "website"
 og_title = "Notebook"
 og_description = "A full-stack notes app with auth and zero-setup persistence -- no database to configure."
 og_site_name = "Notebook"
+
+# Manual routing: `app` (main.jac) is the client root and declares its own
+# <Router>. Without this the runtime falls back to the file-based `pages/`
+# convention.
+[serve]
+base_route_app = "app"
