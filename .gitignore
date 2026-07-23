@@ -1,0 +1,15 @@
+# secrets — ai-triage/.env carries real API keys; never commit any .env
+.env
+.env.*
+
+# build output & caches
+.jac/
+dist/
+node_modules/
+__pycache__/
+*.pyc
+*.jab
+
+# tooling
+.jaccoder/
+.DS_Store
