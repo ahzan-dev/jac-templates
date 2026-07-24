@@ -107,17 +107,19 @@ Routing is MANUAL: `base_route_app = "app"` in `jac.toml` points the client at
     <Route path="/" element={<IndexRedirect />} />
     <Route path="/login" element={<LoginPage />} />
     <Route path="/signup" element={<SignupPage />} />
-    <Route
-        path="/dashboard"
-        element={<AuthGuard redirect="/login"><DashboardPage /></AuthGuard>}
-    />
+    <Route element={<AuthGuard redirect="/login" />}>
+        <Route path="/dashboard" element={<DashboardPage />} />
+    </Route>
 </Routes>
 ```
 
-The `<AuthGuard>` wrapper is what protects the dashboard: visitors without a
-session are redirected to `/login` before `DashboardPage` ever renders.
-`DashboardPage` itself does not mention auth — the guard lives in the route
-table, so there is exactly one place to check.
+The `<AuthGuard>` layout route is what protects the dashboard: logged-in
+visitors fall through its `<Outlet/>` to the nested route, everyone else is
+redirected to `/login` before `DashboardPage` ever renders. (Don't pass the
+page as AuthGuard's JSX child — children are ignored and the page renders
+blank; nest a `<Route>` instead.) `DashboardPage` itself does not mention
+auth — the guard lives in the route table, so there is exactly one place to
+check.
 
 ## Run it
 

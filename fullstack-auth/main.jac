@@ -14,9 +14,10 @@ This file does three things:
      in jac.toml points the client at `app()` below, which owns the
      <Router>/<Routes>/<Route> table. There is no `pages/` directory.
 
-`/dashboard` is protected by wrapping its element in <AuthGuard>: visitors
-without a session are redirected to /login before DashboardPage renders.
-The guard lives in the route table, so there is exactly one place to check.
+`/dashboard` is protected by nesting it under an <AuthGuard> layout route:
+logged-in visitors fall through the guard's <Outlet/> to the page, everyone
+else is redirected to /login before DashboardPage ever renders. The guard
+lives in the route table, so there is exactly one place to check.
 """
 
 import from services.notes {
@@ -46,10 +47,14 @@ def:pub app() -> JsxElement {
                 <Route path="/" element={<IndexRedirect />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignupPage />} />
-                <Route
-                    path="/dashboard"
-                    element={<AuthGuard redirect="/login"><DashboardPage /></AuthGuard>}
-                />
+                {#* AuthGuard is a LAYOUT route: when logged in it renders an
+                    <Outlet/> for its child routes; when logged out it
+                    redirects. Do NOT pass the page as AuthGuard's JSX child --
+                    children are ignored, the Outlet renders nothing, and the
+                    page goes silently blank. Nest a <Route> instead. *#}
+                <Route element={<AuthGuard redirect="/login" />}>
+                    <Route path="/dashboard" element={<DashboardPage />} />
+                </Route>
             </Routes>
         </Router>
     </div>;

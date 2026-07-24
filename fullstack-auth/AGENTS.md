@@ -51,9 +51,11 @@ The rules that keep this template honest:
   'app'" and the page renders blank.
 - **Add new routes to the table in `main.jac`.** This app uses MANUAL routing
   -- there is no `pages/` directory, and adding one would fight the `<Router>`
-  over the URL. A protected route wraps its element in
-  `<AuthGuard redirect="/login">...</AuthGuard>`; an open route doesn't. Do not
-  hand-roll a guard inside a page component.
+  over the URL. A protected route nests under the
+  `<Route element={<AuthGuard redirect="/login" />}>` layout route; an open
+  route sits at the top level. AuthGuard renders an `<Outlet/>` for its child
+  routes and IGNORES JSX children -- `<AuthGuard><Page/></AuthGuard>` renders
+  blank. Do not hand-roll a guard inside a page component.
 - **Await every `sv import` call.** The stubs are async; a missing `await`
   assigns a Promise and the UI silently breaks. Mutations write, then refetch --
   rebind state to a fresh server response rather than mutating a list in place.
@@ -104,7 +106,7 @@ Concrete next steps. Each is a self-contained prompt you can hand to an agent.
 2. **"Add a profile settings page."** `save_profile` and `my_profile` in
    `services/notes.sv.jac` already do the work -- `save_profile` upserts, so no
    new endpoint is needed. Add `components/SettingsPage.jac`, register
-   `/settings` in `main.jac` wrapped in `<AuthGuard>`, reuse the `Field` /
+   `/settings` in `main.jac` under the `<AuthGuard>` layout route, reuse the `Field` /
    `Input` pattern from `components/SignupPage.jac`, and add a nav item to
    `components/AppSidebar.jac`.
 3. **"Add tags to notes and filter by them."** Put `has tags: list[str] = [];`
